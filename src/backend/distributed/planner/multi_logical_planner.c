@@ -332,7 +332,8 @@ TargetListOnPartitionColumn(Query *query, List *targetEntryList)
 	 */
 	if (!targetListOnPartitionColumn)
 	{
-		if (!FindNodeCheckInRangeTableList(query->rtable, IsDistributedNonReferenceTableRTE) &&
+		if (!FindNodeCheckInRangeTableList(query->rtable,
+										   IsDistributedNonReferenceTableRTE) &&
 			AllTargetExpressionsAreColumnReferences(targetEntryList))
 		{
 			targetListOnPartitionColumn = true;
@@ -461,6 +462,7 @@ IsDistributedNonReferenceTableRTE(Node *node)
 	return relationId != InvalidOid && IsDistributedTable(relationId) &&
 		   PartitionMethod(relationId) != DISTRIBUTE_BY_NONE;
 }
+
 
 /*
  * FullCompositeFieldList gets a composite field list, and checks if all fields
@@ -1805,7 +1807,6 @@ MultiProjectNode(List *targetEntryList)
 	ListCell *columnCell = NULL;
 
 	/* extract the list of columns and remove any duplicates */
-	elog(WARNING, "%s", nodeToString(targetEntryList));
 	List *columnList = pull_var_clause_default((Node *) targetEntryList);
 	foreach(columnCell, columnList)
 	{
@@ -2020,6 +2021,7 @@ pull_var_clause_default(Node *node)
 	return columnList;
 }
 
+
 /*
  * PullVarClauseDeepWalker implements walker logic for pull_var_clause_deep.
  */
@@ -2074,6 +2076,7 @@ pull_var_clause_deep(Node *node)
 	expression_tree_walker(node, PullVarClauseDeepWalker, &context);
 	return context.result;
 }
+
 
 /*
  * ApplyJoinRule finds the join rule application function that corresponds to

@@ -32,6 +32,7 @@
 #include "distributed/pg_dist_partition.h"
 #include "distributed/query_utils.h"
 #include "distributed/query_pushdown_planning.h"
+#include "distributed/recursive_planning.h"
 #include "distributed/relation_restriction_equivalence.h"
 #include "distributed/version_compat.h"
 #include "nodes/nodeFuncs.h"
@@ -88,7 +89,6 @@ static bool HasRecurringTuples(Node *node, RecurringTuplesType *recurType);
 static MultiNode * SubqueryPushdownMultiNodeTree(Query *queryTree);
 static List * FlattenJoinVars(List *columnList, Query *queryTree);
 static Node * FlattenJoinVarsMutator(Node *node, Query *queryTree);
-static bool VarEqualsVar(Var *left, Var *right);
 static void UpdateVarMappingsForExtendedOpNode(List *columnList,
 											   List *flattenedColumnList,
 											   List *subqueryTargetEntryList);
@@ -1007,6 +1007,14 @@ DeferErrorIfCannotPushdownSubquery(Query *subqueryTree, bool outerMostQueryHasLi
 					  "a column from another query";
 	}
 
+	if (subqueryTree->havingQual &&
+		NodeContainsSubqueryReferencesToThisScope(subqueryTree->havingQual))
+	{
+		preconditionsSatisfied = false;
+		errorDetail = "Having qual subqueries with outer references "
+					  "currently unsupported";
+	}
+
 	/* distinct clause list must include partition column */
 	if (subqueryTree->distinctClause)
 	{
@@ -1569,10 +1577,8 @@ SubqueryPushdownMultiNodeTree(Query *queryTree)
 	 * node are indexed with their respective position in columnList.
 	 */
 	List *targetColumnList = pull_var_clause_default((Node *) targetEntryList);
-	List *havingClauseColumnList = pull_var_clause_deep(queryTree->havingQual);
+	List *havingClauseColumnList = pull_var_clause_default(queryTree->havingQual);
 	List *columnList = list_concat(targetColumnList, havingClauseColumnList);
-
-	elog(WARNING, "SubqueryMultiNodeTree %s", nodeToString(queryTree->havingQual));
 
 	List *flattenedExprList = FlattenJoinVars(columnList, queryTree);
 
@@ -1750,24 +1756,7 @@ CreateSubqueryTargetEntryList(List *exprList)
 	Var *expr = NULL;
 	foreach_ptr(expr, exprList)
 	{
-		bool found = false;
-		Var *existingExpr = NULL;
-		foreach_ptr(existingExpr, uniqueExprList)
-		{
-			if (VarEqualsVar(expr, existingExpr))
-			{
-				found = true;
-				break;
-			}
-		}
-
-		if (!found)
-		{
-			/* expressions will be lifted to their referenced level */
-			Var *uniqueExpr = copyObject(expr);
-			uniqueExpr->varlevelsup = 0;
-			uniqueExprList = lappend(uniqueExprList, uniqueExpr);
-		}
+		uniqueExprList = list_append_unique(uniqueExprList, expr);
 	}
 
 	AttrNumber resNo = 1;
@@ -1777,7 +1766,7 @@ CreateSubqueryTargetEntryList(List *exprList)
 		TargetEntry *newTargetEntry = makeNode(TargetEntry);
 		StringInfo exprNameString = makeStringInfo();
 
-		newTargetEntry->expr = uniqueExpr;
+		newTargetEntry->expr = copyObject(uniqueExpr);
 		appendStringInfo(exprNameString, WORKER_COLUMN_FORMAT, resNo);
 		newTargetEntry->resname = exprNameString->data;
 		newTargetEntry->resjunk = false;
@@ -1828,27 +1817,6 @@ UpdateVarMappingsForExtendedOpNode(List *columnList, List *flattenedExprList,
 
 
 /*
- * VarEqualsVar compares Vars which may differ by varlevelsup
- */
-static bool
-VarEqualsVar(Var *left, Var *right)
-{
-	elog(WARNING, "=? %d %s %s",
-		 left->varno == right->varno &&
-		 left->varattno == right->varattno &&
-		 left->vartype == right->vartype &&
-		 left->vartypmod == right->vartypmod &&
-		 left->varcollid == right->varcollid,
-		 nodeToString(left), nodeToString(right));
-	return left->varno == right->varno &&
-		   left->varattno == right->varattno &&
-		   left->vartype == right->vartype &&
-		   left->vartypmod == right->vartypmod &&
-		   left->varcollid == right->varcollid;
-}
-
-
-/*
  * UpdateColumnToMatchingTargetEntry sets the variable of given column entry to
  * the matching entry of the targetEntryList. Since data type of the column can
  * be different from the types of the elements of targetEntryList, we use flattenedExpr.
@@ -1856,20 +1824,15 @@ VarEqualsVar(Var *left, Var *right)
 static void
 UpdateColumnToMatchingTargetEntry(Var *column, Node *flattenedExpr, List *targetEntryList)
 {
-	elog(WARNING, "COLUMN %d %s", column->varattno, nodeToString(column));
 	TargetEntry *targetEntry = NULL;
 	foreach_ptr(targetEntry, targetEntryList)
 	{
-		elog(WARNING, "TARGET %d %s", targetEntry->resno, nodeToString(targetEntry));
-
 		if (IsA(targetEntry->expr, Var))
 		{
 			Var *targetEntryVar = (Var *) targetEntry->expr;
 
-			if (IsA(flattenedExpr, Var) && VarEqualsVar((Var *) flattenedExpr,
-														(Var *) targetEntryVar))
+			if (IsA(flattenedExpr, Var) && equal(flattenedExpr, targetEntryVar))
 			{
-				elog(WARNING, "FOUND %d %d %d=%d", targetEntry->resno, column->vartype, column->varattno, targetEntry->resno);
 				column->varno = 1;
 				column->varattno = targetEntry->resno;
 				break;
@@ -1877,7 +1840,6 @@ UpdateColumnToMatchingTargetEntry(Var *column, Node *flattenedExpr, List *target
 		}
 		else if (IsA(targetEntry->expr, CoalesceExpr))
 		{
-			/* TODO test this with varlevelsup */
 			/*
 			 * FlattenJoinVars() flattens full outer joins' columns that is
 			 * in the USING part into COALESCE(left_col, right_col)

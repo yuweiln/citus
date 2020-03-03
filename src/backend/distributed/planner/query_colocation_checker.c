@@ -141,7 +141,8 @@ AnchorRte(Query *subquery)
 		 * the set operations.
 		 */
 		if (anchorRangeTblEntry == NULL && currentRte->rtekind == RTE_SUBQUERY &&
-			FindNodeCheck((Node *) currentRte->subquery, IsDistributedNonReferenceTableRTE) &&
+			FindNodeCheck((Node *) currentRte->subquery,
+						  IsDistributedNonReferenceTableRTE) &&
 			currentRte->subquery->setOperations == NULL &&
 			!ContainsUnionSubquery(currentRte->subquery))
 		{

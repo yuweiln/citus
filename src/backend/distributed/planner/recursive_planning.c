@@ -1231,8 +1231,22 @@ CteReferenceListWalker(Node *node, CteReferenceWalkerContext *context)
 
 
 /*
+ * NodeContainsSubqueryReferencesToThisScope determines whether the given node
+ * contains any subqueries that point to the scope of the node itself.
+ */
+bool
+NodeContainsSubqueryReferencesToThisScope(Node *node)
+{
+	VarLevelsUpWalkerContext context = { 0 };
+
+	return expression_tree_walker(node, ContainsReferencesToOuterQueryWalker,
+								  &context);
+}
+
+
+/*
  * ContainsReferencesToOuterQuery determines whether the given query contains
- * any Vars that point outside of the query itself. Such queries cannot be
+ * any nodes that point outside of the query itself. Such queries cannot be
  * planned recursively.
  */
 static bool
