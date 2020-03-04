@@ -2,13 +2,13 @@
 -- MULTI_MX_CREATE_TABLE
 --
 ALTER SEQUENCE pg_catalog.pg_dist_shardid_seq RESTART 1220000;
-SELECT start_metadata_sync_to_node('localhost', :worker_1_port);
+SELECT start_metadata_sync_to_node('<host>', :worker_1_port);
  start_metadata_sync_to_node
 ---------------------------------------------------------------------
 
 (1 row)
 
-SELECT start_metadata_sync_to_node('localhost', :worker_2_port);
+SELECT start_metadata_sync_to_node('<host>', :worker_2_port);
  start_metadata_sync_to_node
 ---------------------------------------------------------------------
 
@@ -212,7 +212,7 @@ SELECT create_distributed_table('nation_hash_collation_search_path', 'n_nationke
 
 (1 row)
 
-\COPY nation_hash_collation_search_path FROM STDIN with delimiter '|';
+COPY nation_hash_collation_search_path FROM STDIN with delimiter '|';
 CREATE TABLE citus_mx_test_schema.nation_hash_composite_types(
     n_nationkey integer not null,
     n_name char(25) not null,
@@ -227,7 +227,7 @@ SELECT create_distributed_table('citus_mx_test_schema.nation_hash_composite_type
 (1 row)
 
 -- insert some data to verify composite type queries
-\COPY citus_mx_test_schema.nation_hash_composite_types FROM STDIN with delimiter '|';
+COPY citus_mx_test_schema.nation_hash_composite_types FROM STDIN with delimiter '|';
 -- now create tpch tables
 -- Create new table definitions for use in testing in distributed planning and
 -- execution functionality. Also create indexes to boost performance.

@@ -962,7 +962,7 @@ DEBUG:  Router planner cannot handle multi-shard select queries
  41 |         1 | aznavour     |      11814
 (5 rows)
 
--- router plannable due to abs(-1) getting converted to 1 by postgresql
+-- router plannable due to abs(-1) getting converted to 1 by <user>ql
 SELECT *
 	FROM articles_hash_mx
 	WHERE author_id = abs(-1);
