@@ -215,7 +215,6 @@ extern List * QualifierList(FromExpr *fromExpr);
 extern List * TableEntryList(List *rangeTableList);
 extern List * UsedTableEntryList(Query *query);
 extern List * pull_var_clause_default(Node *node);
-extern List * pull_var_clause_deep(Node *node);
 extern bool OperatorImplementsEquality(Oid opno);
 extern DeferredErrorMessage * DeferErrorIfUnsupportedClause(List *clauseList);
 extern MultiProject * MultiProjectNode(List *targetEntryList);

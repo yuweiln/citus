@@ -719,10 +719,8 @@ BuildJobQuery(MultiNode *multiNode, List *dependentJobList)
 	jobQuery->limitOffset = limitOffset;
 	jobQuery->limitCount = limitCount;
 	jobQuery->havingQual = havingQual;
-	elog(WARNING, "1 %s", nodeToString(havingQual));
 	jobQuery->hasAggs = contain_agg_clause((Node *) targetList) ||
 						contain_agg_clause((Node *) havingQual);
-	elog(WARNING, "2");
 	jobQuery->distinctClause = distinctClause;
 	jobQuery->hasDistinctOn = hasDistinctOn;
 
@@ -807,9 +805,7 @@ BuildReduceQuery(MultiExtendedOp *extendedOpNode, List *dependentJobList)
 	reduceQuery->limitOffset = extendedOpNode->limitOffset;
 	reduceQuery->limitCount = extendedOpNode->limitCount;
 	reduceQuery->havingQual = extendedOpNode->havingQual;
-	elog(WARNING, "3");
 	reduceQuery->hasAggs = contain_agg_clause((Node *) targetList);
-	elog(WARNING, "4");
 
 	return reduceQuery;
 }
@@ -1557,13 +1553,11 @@ BuildSubqueryJobQuery(MultiNode *multiNode)
 	/* build the where clause list using select predicates */
 	List *whereClauseList = QuerySelectClauseList(multiNode);
 
-	elog(WARNING, "5");
 	if (contain_agg_clause((Node *) targetList) ||
 		contain_agg_clause((Node *) havingQual))
 	{
 		hasAggregates = true;
 	}
-	elog(WARNING, "6");
 
 	/* distinct is not send to worker query if there are top level aggregates */
 	if (hasAggregates)
@@ -1614,10 +1608,11 @@ static void
 UpdateAllColumnAttributes(Node *columnContainer, List *rangeTableList,
 						  List *dependentJobList)
 {
+	ListCell *columnCell = NULL;
 	List *columnList = pull_var_clause_default(columnContainer);
-	Var *column = NULL;
-	foreach_ptr(column, columnList)
+	foreach(columnCell, columnList)
 	{
+		Var *column = (Var *) lfirst(columnCell);
 		UpdateColumnAttributes(column, rangeTableList, dependentJobList);
 	}
 }

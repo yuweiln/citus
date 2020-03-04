@@ -248,6 +248,11 @@ SafeToPushdownUnionSubquery(PlannerRestrictionContext *plannerRestrictionContext
 		palloc0(sizeof(AttributeEquivalenceClass));
 	ListCell *relationRestrictionCell = NULL;
 
+	if (restrictionContext->allReferenceTables)
+	{
+		return false;
+	}
+
 	attributeEquivalence->equivalenceId = attributeEquivalenceId++;
 
 	/*
@@ -290,7 +295,7 @@ SafeToPushdownUnionSubquery(PlannerRestrictionContext *plannerRestrictionContext
 				RelationRestrictionPartitionKeyIndex(relationRestriction);
 
 			/* union does not have partition key in the target list */
-			if (partitionKeyIndex == 0)
+			if (partitionKeyIndex == InvalidAttrNumber)
 			{
 				continue;
 			}

@@ -631,7 +631,7 @@ ShouldRecursivelyPlanAllSubqueriesInWhere(Query *query)
 		return false;
 	}
 
-	if (FindNodeCheckInRangeTableList(query->rtable, IsDistributedTableRTE))
+	if (FindNodeCheckInRangeTableList(query->rtable, IsDistributedNonReferenceTableRTE))
 	{
 		/* there is a distributed table in the FROM clause */
 		return false;
@@ -1237,7 +1237,9 @@ CteReferenceListWalker(Node *node, CteReferenceWalkerContext *context)
 bool
 NodeContainsSubqueryReferencesToThisScope(Node *node)
 {
-	VarLevelsUpWalkerContext context = { 0 };
+	VarLevelsUpWalkerContext context = {
+		.level = -1
+	};
 
 	return expression_tree_walker(node, ContainsReferencesToOuterQueryWalker,
 								  &context);

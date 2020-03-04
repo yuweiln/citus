@@ -56,7 +56,11 @@ ORDER BY 1,2;
 -- within a subquery, some unions can be pushed down
 SELECT * FROM ((SELECT * FROM test) UNION (SELECT * FROM test)) u ORDER BY 1,2;
 SELECT * FROM ((SELECT x, y FROM test) UNION (SELECT y, x FROM test)) u ORDER BY 1,2;
+set citus.log_remote_commands to on;
+set client_min_messages to debug4;
 SELECT * FROM ((SELECT * FROM test) UNION (SELECT * FROM ref)) u ORDER BY 1,2;
+reset client_min_messages;
+reset citus.log_remote_commands;
 SELECT * FROM ((SELECT * FROM ref) UNION (SELECT * FROM ref)) u ORDER BY 1,2;
 
 SELECT * FROM ((SELECT * FROM test) UNION ALL (SELECT * FROM test)) u ORDER BY 1,2;

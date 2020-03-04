@@ -337,7 +337,7 @@ IsFunctionRTE(Node *node)
  * IsNodeSubquery returns true if the given node is a Query or SubPlan or a
  * Param node with paramkind PARAM_EXEC.
  *
- * The check for SubPlan is needed whev this is used on a already rewritten
+ * The check for SubPlan is needed when this is used on a already rewritten
  * query. Such a query has SubPlan nodes instead of SubLink nodes (which
  * contain a Query node).
  * The check for PARAM_EXEC is needed because some very simple subqueries like
@@ -574,6 +574,16 @@ DeferErrorIfUnsupportedSubqueryPushdown(Query *originalQuery,
 	{
 		outerMostQueryHasLimit = true;
 	}
+
+	if (originalQuery->havingQual &&
+		NodeContainsSubqueryReferencesToThisScope(originalQuery->havingQual))
+	{
+		return DeferredError(ERRCODE_FEATURE_NOT_SUPPORTED,
+							 "Having qual subqueries with outer references "
+							 "currently unsupported",
+							 NULL, NULL);
+	}
+
 
 	/*
 	 * We're checking two things here:
@@ -1005,14 +1015,6 @@ DeferErrorIfCannotPushdownSubquery(Query *subqueryTree, bool outerMostQueryHasLi
 		errorDetail = "Having qual without group by on partition column is "
 					  "currently unsupported when a subquery references "
 					  "a column from another query";
-	}
-
-	if (subqueryTree->havingQual &&
-		NodeContainsSubqueryReferencesToThisScope(subqueryTree->havingQual))
-	{
-		preconditionsSatisfied = false;
-		errorDetail = "Having qual subqueries with outer references "
-					  "currently unsupported";
 	}
 
 	/* distinct clause list must include partition column */
